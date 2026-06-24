@@ -132,6 +132,39 @@ body { background-image: url('bg-clear-day.gif'); background-color: #99ccff; col
 </tr>
 
 <tr>
+<td align="center" bgcolor="#330066">
+<font face="Comic Sans MS, Arial" size="3" color="#FFFF00"><b>&#9881; PREVIEW THE BACKGROUNDS! &#9881;</b></font>
+<br>
+<font face="Arial" size="2" color="#FFFFFF">Click a button to change the sky yourself:</font>
+<br><br>
+<table border="0" cellpadding="3" cellspacing="0">
+<tr>
+<td><font face="Arial" size="2" color="#FFFFFF"><b>Daytime:</b></font></td>
+<td><input type="button" value="Sunny" onclick="pickBg('clear','day')"></td>
+<td><input type="button" value="Cloudy" onclick="pickBg('cloudy','day')"></td>
+<td><input type="button" value="Raining" onclick="pickBg('rain','day')"></td>
+<td><input type="button" value="Storms" onclick="pickBg('storm','day')"></td>
+</tr>
+<tr>
+<td><font face="Arial" size="2" color="#FFFFFF"><b>Nighttime:</b></font></td>
+<td><input type="button" value="Clear" onclick="pickBg('clear','night')"></td>
+<td><input type="button" value="Cloudy" onclick="pickBg('cloudy','night')"></td>
+<td><input type="button" value="Raining" onclick="pickBg('rain','night')"></td>
+<td><input type="button" value="Storms" onclick="pickBg('storm','night')"></td>
+</tr>
+</table>
+<br>
+<input type="button" value="&#9728; Back to LIVE Orlando weather &#9728;" onclick="pickBg('live')">
+</td>
+</tr>
+
+<tr>
+<td>
+<hr noshade size="4" color="#FF6600">
+</td>
+</tr>
+
+<tr>
 <td align="center" bgcolor="#000000">
 <font face="Arial" size="1" color="#FFFFFF">
 This page best viewed in Netscape Navigator 4.0 or Internet Explorer 5.0 at 800x600 resolution.<br>
@@ -155,64 +188,72 @@ Made with &hearts; for Florida weather lovers everywhere.<br>
 </center>
 
 <script type="text/javascript">
-// Fetch live Orlando, FL weather from Open-Meteo (free, no API key required)
-// and swap the tiled background GIF to match current conditions.
-(function () {
-  var ORLANDO = "latitude=28.5383&longitude=-81.3792";
-  var API = "https://api.open-meteo.com/v1/forecast?" + ORLANDO +
-            "&current=weather_code,is_day,temperature_2m&temperature_unit=fahrenheit";
+// Live Orlando, FL weather from Open-Meteo (free, no API key required) plus a
+// manual background switcher. Functions used by the switcher buttons are global.
 
-  // Map a WMO weather code to one of our condition keywords.
-  function condition(code) {
-    if (code <= 1) return "clear";                       // 0,1 clear / mainly clear
-    if (code <= 48) return "cloudy";                     // 2,3 cloudy; 45,48 fog
-    if (code >= 95) return "storm";                      // 95,96,99 thunderstorm
-    return "rain";                                       // 51-86 drizzle/rain/showers/snow
+var ORLANDO = "latitude=28.5383&longitude=-81.3792";
+var WX_API = "https://api.open-meteo.com/v1/forecast?" + ORLANDO +
+             "&current=weather_code,is_day,temperature_2m&temperature_unit=fahrenheit";
+
+// Map a WMO weather code to one of our condition keywords.
+function wxCondition(code) {
+  if (code <= 1) return "clear";                       // 0,1 clear / mainly clear
+  if (code <= 48) return "cloudy";                     // 2,3 cloudy; 45,48 fog
+  if (code >= 95) return "storm";                      // 95,96,99 thunderstorm
+  return "rain";                                       // 51-86 drizzle/rain/showers/snow
+}
+
+function wxDescribe(cond) {
+  if (cond === "clear")  return "Sunny &amp; Clear &#9728;";
+  if (cond === "cloudy") return "Cloudy &#9729;";
+  if (cond === "storm")  return "Thunderstorms &#9889;";
+  return "Raining &#127783;";
+}
+
+function setBackground(cond, when) {
+  var name = "bg-" + cond + "-" + when + ".gif";
+  document.body.style.backgroundImage = "url('" + name + "')";
+  if (document.body.background !== undefined) {
+    document.body.background = name;                    // old-browser attribute too
   }
+}
 
-  function describe(code) {
-    var c = condition(code);
-    if (c === "clear")  return "Sunny &amp; Clear &#9728;";
-    if (c === "cloudy") return "Cloudy &#9729;";
-    if (c === "storm")  return "Thunderstorms &#9889;";
-    return "Raining &#127783;";
-  }
+function wxShow(msg) {
+  var el = document.getElementById("wx-status");
+  if (el) { el.innerHTML = msg; }
+}
 
-  function setBackground(name) {
-    document.body.style.backgroundImage = "url('" + name + "')";
-    if (document.body.background !== undefined) {
-      document.body.background = name;                    // old-browser attribute too
-    }
-  }
+// Called by the preview buttons. pickBg('live') restores the real conditions.
+function pickBg(cond, when) {
+  if (cond === "live") { loadLiveWeather(); return; }
+  setBackground(cond, when);
+  var label = when === "night" ? " (nighttime &#127769;)" : "";
+  wxShow("PREVIEW: " + wxDescribe(cond) + label);
+}
 
-  function apply(code, isDay) {
-    var when = isDay ? "day" : "night";
-    setBackground("bg-" + condition(code) + "-" + when + ".gif");
-    return describe(code) + (isDay ? "" : " (nighttime &#127769;)");
-  }
-
-  function show(msg) {
-    var el = document.getElementById("wx-status");
-    if (el) { el.innerHTML = msg; }
-  }
-
+function loadLiveWeather() {
+  wxShow("checking the skies...");
   try {
-    fetch(API)
+    fetch(WX_API)
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var cur = data && data.current;
-        if (!cur) { show("(weather unavailable right now)"); return; }
+        if (!cur) { wxShow("(weather unavailable right now)"); return; }
         var isDay = cur.is_day === 1;
-        var desc = apply(cur.weather_code, isDay);
+        var cond = wxCondition(cur.weather_code);
+        setBackground(cond, isDay ? "day" : "night");
+        var label = isDay ? "" : " (nighttime &#127769;)";
         var temp = (cur.temperature_2m != null)
                  ? " &mdash; " + Math.round(cur.temperature_2m) + "&deg;F" : "";
-        show(desc + temp + "!");
+        wxShow(wxDescribe(cond) + label + temp + "!");
       })
-      .catch(function () { show("(couldn't reach the weather station)"); });
+      .catch(function () { wxShow("(couldn't reach the weather station)"); });
   } catch (e) {
-    show("(your browser is too old for live weather!)");
+    wxShow("(your browser is too old for live weather!)");
   }
-})();
+}
+
+loadLiveWeather();
 </script>
 
 </body>
