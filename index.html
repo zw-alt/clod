@@ -4,10 +4,10 @@
 <title>~*~ FLORIDA WEATHER IS THE BEST!!! ~*~</title>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <style type="text/css">
-body { background-image: url('clouds-tile.gif'); background-color: #99ccff; color: #000000; }
+body { background-image: url('bg-clear-day.gif'); background-color: #99ccff; color: #000000; }
 </style>
 </head>
-<body background="clouds-tile.gif" bgcolor="#99CCFF" text="#000000" link="#0000FF" vlink="#800080" alink="#FF0000">
+<body background="bg-clear-day.gif" bgcolor="#99CCFF" text="#000000" link="#0000FF" vlink="#800080" alink="#FF0000">
 
 <center>
 
@@ -32,6 +32,15 @@ body { background-image: url('clouds-tile.gif'); background-color: #99ccff; colo
 <br>
 <font face="Arial" size="3" color="#FFFFFF">
 <i>The Sunshine State... Sunny 365 Days A Year!!</i>
+</font>
+</td>
+</tr>
+
+<tr>
+<td align="center" bgcolor="#006600">
+<font face="Arial" size="3" color="#FFFFFF">
+<b>&#128225; LIVE conditions right now in Orlando, FL:</b>
+<font color="#FFFF00"><b><span id="wx-status">checking the skies...</span></b></font>
 </font>
 </td>
 </tr>
@@ -144,6 +153,67 @@ Made with &hearts; for Florida weather lovers everywhere.<br>
 </table>
 
 </center>
+
+<script type="text/javascript">
+// Fetch live Orlando, FL weather from Open-Meteo (free, no API key required)
+// and swap the tiled background GIF to match current conditions.
+(function () {
+  var ORLANDO = "latitude=28.5383&longitude=-81.3792";
+  var API = "https://api.open-meteo.com/v1/forecast?" + ORLANDO +
+            "&current=weather_code,is_day,temperature_2m&temperature_unit=fahrenheit";
+
+  // Map a WMO weather code to one of our condition keywords.
+  function condition(code) {
+    if (code <= 1) return "clear";                       // 0,1 clear / mainly clear
+    if (code <= 48) return "cloudy";                     // 2,3 cloudy; 45,48 fog
+    if (code >= 95) return "storm";                      // 95,96,99 thunderstorm
+    return "rain";                                       // 51-86 drizzle/rain/showers/snow
+  }
+
+  function describe(code) {
+    var c = condition(code);
+    if (c === "clear")  return "Sunny &amp; Clear &#9728;";
+    if (c === "cloudy") return "Cloudy &#9729;";
+    if (c === "storm")  return "Thunderstorms &#9889;";
+    return "Raining &#127783;";
+  }
+
+  function setBackground(name) {
+    document.body.style.backgroundImage = "url('" + name + "')";
+    if (document.body.background !== undefined) {
+      document.body.background = name;                    // old-browser attribute too
+    }
+  }
+
+  function apply(code, isDay) {
+    var when = isDay ? "day" : "night";
+    setBackground("bg-" + condition(code) + "-" + when + ".gif");
+    return describe(code) + (isDay ? "" : " (nighttime &#127769;)");
+  }
+
+  function show(msg) {
+    var el = document.getElementById("wx-status");
+    if (el) { el.innerHTML = msg; }
+  }
+
+  try {
+    fetch(API)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var cur = data && data.current;
+        if (!cur) { show("(weather unavailable right now)"); return; }
+        var isDay = cur.is_day === 1;
+        var desc = apply(cur.weather_code, isDay);
+        var temp = (cur.temperature_2m != null)
+                 ? " &mdash; " + Math.round(cur.temperature_2m) + "&deg;F" : "";
+        show(desc + temp + "!");
+      })
+      .catch(function () { show("(couldn't reach the weather station)"); });
+  } catch (e) {
+    show("(your browser is too old for live weather!)");
+  }
+})();
+</script>
 
 </body>
 </html>
